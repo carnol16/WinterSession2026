@@ -32,13 +32,13 @@ emission_matrix = np.array([
 # Day 1: Walk (Index 0), Day 2: Shop (Index 1), Day 3: Clean (Index 2)
 obs_sequence = [0, 1, 2] 
 
-# --- PART 2: CALCULATION (Greedy Approach) ---
+# PART 2: CALCULATION (Greedy Approach)
 
 # To store the path and probabilities for visualization
 path_history = [] 
 prob_history = []
 
-# Step 1: Day 1 Initialization (PDF Source 100-105)
+# Step 1: Day 1 Initialization
 obs_index = obs_sequence[0]
 current_probs = start_probs * emission_matrix[:, obs_index]
 
@@ -88,7 +88,7 @@ print(f"Final Most Likely Sequence: {' => '.join(final_sequence)}")
 # Matches Source 120: Sunny => Sunny => Rainy
 
 
-# --- PART 3: VISUALIZATION ---
+# PART 3: VISUALIZATION
 
 fig, ax = plt.subplots(figsize=(10, 6))
 days = [1, 2, 3]
