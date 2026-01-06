@@ -1,7 +1,7 @@
 import numpy as np
 
 def find_sigma_demo():
-    # --- SETUP ---
+    # SETUP
     k = 3
     target_budget = np.log2(k) # Target is ~1.585
     
@@ -16,7 +16,7 @@ def find_sigma_demo():
     print(f"Distances: {distances}")
     print("-" * 40)
     
-    # --- BINARY SEARCH ---
+    #BINARY SEARCH
     min_sigma = 0.001
     max_sigma = 10.0
     
