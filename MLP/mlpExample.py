@@ -76,7 +76,14 @@ model.fit(X_train, y_train, epochs=100, verbose=0)
 
 #CREATE A NEW PERSON
 # Format: [Income, Debt, Stability, Age, Location]
-new_person = [40000, 0, 30, 70, 0]
+print("\n--- Applicantion ---")
+income = int(input("\nHow much money does you make?\n>"))
+debt = int(input("How much debt do you have?\n>"))
+job = int(input("How many years have you been at your current employer?\n>"))
+age = int(input("How old are you?\n>"))
+location = int(input("Do you live in a rural(0) or urban(1) area?\n>"))
+
+new_person = [income, debt, job, age, location]
 
 # RUN THE TEST
 # We wrap it in np.array([ ... ]) because the model expects a list of lists
