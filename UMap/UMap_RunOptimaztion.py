@@ -1,106 +1,132 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import pairwise_distances
 
-def run_optimization_phase():
-    # 1. THE INPUT: The Symmetrized P Matrix (The "Blueprint")
-    # (Simplified values from our previous discussion)
-    # A, B, C are SciFi. D is History. E is Poetry.
-    P = np.array([
-        [0.0, 0.9, 0.6, 0.0, 0.0], # A
-        [0.9, 0.0, 0.6, 0.0, 0.0], # B
-        [0.6, 0.6, 0.0, 0.1, 0.0], # C
-        [0.0, 0.0, 0.1, 0.0, 0.9], # D (Linked to E!)
-        [0.0, 0.0, 0.0, 0.9, 0.0]  # E (Linked to D!)
-    ])
-    names = ['SciFi-A', 'SciFi-B', 'SciFi-C', 'History-D', 'Poetry-E']
+# --- 1. SETUP THE DATA (The "Symmetrized Matrix" P) ---
+# We use the values from our specific Library example.
+labels = ['A', 'B', 'C', 'D', 'E']
 
-    # 2. INITIALIZATION: Random positions in 2D
-    np.random.seed(42)
-    Y = np.random.rand(5, 2) * 10 # Random box 10x10
+# The Symmetrized Probability Matrix (P)
+# (Rows/Cols: A, B, C, D, E)
+P = np.array([
+    [0.00, 1.00, 0.58, 1.00, 0.33], # A
+    [1.00, 0.00, 0.58, 0.41, 0.31], # B
+    [0.58, 0.58, 0.00, 0.17, 0.29], # C
+    [1.00, 0.41, 0.17, 0.00, 1.00], # D
+    [0.33, 0.31, 0.29, 1.00, 0.00]  # E
+])
 
-    # Hyperparameters
-    learning_rate = 1.0
-    n_epochs = 50
+# --- 2. INITIALIZATION (Epoch 0: Spectral Embedding) ---
+# We use the coordinates we calculated in the previous step.
+# Format: [x, y]
+coordinates = np.array([
+    [-0.55, -0.20], # A (SciFi Anchor)
+    [-0.45,  0.10], # B (SciFi)
+    [-0.40,  0.40], # C (SciFi Lightest)
+    [ 0.10, -0.50], # D (Bridge)
+    [ 0.80,  0.10]  # E (Poetry Outlier)
+])
 
-    # Store history for plotting
-    history = [Y.copy()]
+# --- 3. DEFINE THE OPTIMIZATION ENGINE (Mini-UMAP) ---
+def compute_low_dim_prob(Y):
+    """
+    Calculates Q (Low-D Probabilities) based on current distances.
+    Formula: Q_ij = 1 / (1 + dist^2)  (Student t-distribution)
+    """
+    n = Y.shape[0]
+    Q = np.zeros((n, n))
+    dist_sq_matrix = np.zeros((n, n))
 
-    print("Starting Optimization Loop (Push/Pull)...")
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                dist_sq = np.sum((Y[i] - Y[j])**2)
+                dist_sq_matrix[i, j] = dist_sq
+                Q[i, j] = 1 / (1 + dist_sq)
+    return Q, dist_sq_matrix
 
-    # 3. THE LOOP (Simplified SGD)
-    for epoch in range(n_epochs):
-        # Calculate current Low-D distances
-        dist_matrix = pairwise_distances(Y)
-        
-        # Calculate Q (Student t-distribution: 1 / (1 + dist^2))
-        # We add epsilon to avoid division by zero
-        Q = 1 / (1 + dist_matrix**2 + 1e-6)
-
-        # Gradients (Simplified forces)
-        # Attraction: Pull if P is high
-        # Repulsion: Push if P is low (simulated by repulsive sampling in real UMAP)
-        
-        # We will calculate a simplified displacement vector for each point
-        grad = np.zeros_like(Y)
-        
-        for i in range(5):
-            for j in range(5):
-                if i == j: continue
-                
-                # Direction vector from i to j
-                diff = Y[j] - Y[i]
-                dist = np.linalg.norm(diff) + 1e-4
-                direction = diff / dist
-                
-                # ATTRACTION (Springs)
-                # Strength depends on P[i,j]
-                attraction = P[i, j] * direction * dist 
-                
-                # REPULSION (Magnets)
-                # Push away from everyone slightly
-                # Real UMAP uses probabilistic sampling for this
-                repulsion = -0.1 * direction / (dist**2 + 0.1) 
-                
-                # Combine
-                grad[i] += (attraction + repulsion) * learning_rate
-
-        # Update positions
-        Y += grad
-        history.append(Y.copy())
-        
-        # Decay learning rate
-        learning_rate *= 0.95
-
-    # 4. VISUALIZATION
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    steps = [0, 10, 49] # Start, Middle, End
+def run_optimization_step(Y, P, learning_rate=1.0):
+    """
+    Runs one Epoch of Gradient Descent.
+    It calculates the forces: Attraction (P) vs Repulsion (Q).
+    """
+    n = Y.shape[0]
+    Q, dist_sq = compute_low_dim_prob(Y)
     
-    for idx, step in enumerate(steps):
-        ax = axes[idx]
-        current_Y = history[step]
+    # Calculate Gradients (The Push/Pull forces)
+    # Simplified Gradient: (P - Q) * phi * (yi - yj)
+    # If P > Q (High prob, currently far): Attraction
+    # If P < Q (Low prob, currently close): Repulsion
+    
+    grads = np.zeros_like(Y)
+    
+    for i in range(n):
+        total_grad = np.zeros(2)
+        for j in range(n):
+            if i != j:
+                # The strength of the force
+                attraction_repulsion = (P[i, j] - Q[i, j])
+                
+                # The geometric factor (from the t-dist derivative)
+                geometric_factor = 1 / (1 + dist_sq[i, j])
+                
+                # The direction vector
+                direction = Y[i] - Y[j]
+                
+                # Add to total force on point i
+                # Factor of 4 is standard in UMAP gradient derivation
+                total_grad += 4.0 * attraction_repulsion * geometric_factor * direction * -1 
         
-        # Plot connections based on P matrix
-        for i in range(5):
-            for j in range(i+1, 5):
-                if P[i, j] > 0.5: # Only draw strong connections
-                    ax.plot([current_Y[i,0], current_Y[j,0]], 
-                            [current_Y[i,1], current_Y[j,1]], 
-                            'k-', alpha=0.2)
+        grads[i] = total_grad
 
-        # Plot points
-        ax.scatter(current_Y[:3, 0], current_Y[:3, 1], c='blue', s=200, label='SciFi')
-        ax.scatter(current_Y[3, 0], current_Y[3, 1], c='green', s=200, label='History')
-        ax.scatter(current_Y[4, 0], current_Y[4, 1], c='red', s=200, label='Poetry')
-        
-        for i, txt in enumerate(names):
-            ax.annotate(txt, (current_Y[i,0]+0.2, current_Y[i,1]+0.2))
+    # Apply the move
+    Y_new = Y + (grads * learning_rate)
+    return Y_new
 
-        ax.set_title(f"Epoch {step}: {'Chaos' if step==0 else 'Converging' if step==10 else 'Final Structure'}")
-        ax.grid(True, alpha=0.3)
-        if idx == 0: ax.legend()
+# --- 4. RUN THE SIMULATION AND PLOT ---
 
-    plt.tight_layout()
-    plt.show()
+fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+snapshots = [0, 25, 100] # The epochs we want to capture
+current_coords = coordinates.copy()
+learning_rate = 0.5
 
-run_optimization_phase()
+# Plot Helper
+def plot_graph(ax, coords, epoch_title):
+    ax.set_title(epoch_title, fontsize=14, fontweight='bold')
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
+    ax.grid(True, linestyle=':', alpha=0.6)
+    
+    # Draw connections (only strong ones for visual clarity)
+    for i in range(len(labels)):
+        for j in range(i+1, len(labels)):
+            if P[i,j] > 0.5: # Draw lines for strong friends
+                ax.plot([coords[i,0], coords[j,0]], [coords[i,1], coords[j,1]], 
+                        color='gray', alpha=0.3, zorder=1)
+
+    # Draw Points
+    colors = ['#FF6B6B', '#FF6B6B', '#FF6B6B', '#4ECDC4', '#556270']
+    ax.scatter(coords[:,0], coords[:,1], s=800, c=colors, edgecolors='black', zorder=2)
+    
+    # Add Labels
+    for idx, label in enumerate(labels):
+        ax.text(coords[idx,0], coords[idx,1], label, 
+                fontsize=12, fontweight='bold', ha='center', va='center', color='white')
+
+# -- The Loop --
+step = 0
+for ax_idx, epoch_target in enumerate(snapshots):
+    # Run until we hit the target epoch
+    while step < epoch_target:
+        current_coords = run_optimization_step(current_coords, P, learning_rate)
+        # Decay learning rate slightly (Simulated annealing)
+        learning_rate *= 0.99 
+        step += 1
+    
+    plot_graph(axes[ax_idx], current_coords, f"Epoch {epoch_target}")
+
+axes[0].set_xlabel("Initialization (Spectral)")
+axes[1].set_xlabel("Sorting Phase (Clusters form)")
+axes[2].set_xlabel("Final Layout (Stable)")
+
+plt.tight_layout()
+plt.show()

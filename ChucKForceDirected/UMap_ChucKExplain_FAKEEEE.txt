@@ -1,0 +1,81 @@
+A interactive, audio-reactive 2D sound browser. It analyzes a folder of audio files, 
+determines their sonic similarities, and organizes them visually so that similar
+sounds group together in clusters.
+
+Phase 1: Feature Extraction (The "Ears")
+Goal: Convert raw audio into a "fingerprint" of numbers.
+
+Mechanism: You use the FeatureCollector object to run four distinct analyses simultaneously on every sound file:
+
+Centroid: Measures "Brightness" (Timbre).
+
+Flux: Measures "Texture" or rate of change.
+
+RMS: Measures "Loudness" or energy.
+
+MFCCs (20 coeffs): Measures "Vowel Shape" or spectral envelope.
+
+Result: Each sound file is converted into a single high-dimensional point (a vector with roughly 23 numbers).
+
+
+Phase 2: K-Nearest Neighbors (The "Brain")
+Goal: Find out which sounds are related to each other.
+
+Mechanism: The script uses a KNN (K-Nearest Neighbors) algorithm. 
+It looks at every sound's high-dimensional vector and finds the 3 closest matches in the dataset.
+
+Result: It builds a "Graph" (a web of connections). 
+If Sound A is similar to Sound B, a connection is recorded. This captures the topology (shape) of your data.
+
+
+Phase 3: Physics Simulation (The "Eyes")
+Goal: Visualize these high-dimensional relationships on a 2D screen.
+
+Mechanism: The script uses a Force-Directed Physics Engine:
+
+Initialization: All points are thrown onto the screen at random positions.
+
+Attraction: Points that are "neighbors" (found in Phase 2) pull each other closer.
+
+Repulsion: All points push each other away to prevent overlap.
+
+Gravity: A gentle force pulls everyone toward the center so they don't drift off-screen.
+
+Damping: Friction is applied to stop the points from moving too fast.
+
+Result: Over time, the pushing and pulling balances out, and clusters emerge.
+Sounds that are similar naturally clump together on screen, creating a map you can explore with your mouse.
+
+
+How this differs from a normal UMap.
+
+We are using a random Initialization, rather than a the traditional "Spectral Embedding"
+This is for a more entertaining output, throwing the points around
+We also use Force directed physics to move points dynamically,
+rather then Stochastic Gradient Descent (SGD), which creates static calculation.
+
+
+
+Big differences are below:
+1. Live Interaction vs. Static Plot
+
+Standard UMAP is designed to give you one static image. It runs the math, finishes, and hands you a PDF.
+
+Our Script is designed to be alive. Because it uses physics, you can drag nodes around, add new sounds, 
+or watch the clusters evolve in real-time. It feels "organic," which is perfect for a musical instrument or creative coding tool.
+
+2. Complexity & Stability
+
+Standard UMAP (Spectral Embedding) involves extremely complex matrix algebra (eigen-decomposition) 
+that is difficult to implement from scratch in a language like ChucK.
+
+Physics is relatively easy to implement (Push/Pull) and intuitively easier to tune.
+"It's exploding? Turn up friction!" is easier than debugging an eigenvector solver.
+
+3. The "Small Data" Context
+
+Standard UMAP shines on datasets with 10,000+ points.
+
+With our 32 sounds, the heavy machinery of Spectral Embedding is overkill. 
+A physics simulation is computationally cheap enough to run at 60 frames per second, giving you a smooth, 
+fun animation that a static UMAP plot could never provide.

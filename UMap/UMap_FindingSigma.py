@@ -9,7 +9,7 @@ def find_sigma_demo():
     # Neighbor 1 is at 0.1 (This is rho)
     # Neighbor 2 is at 0.5
     # Neighbor 3 is at 2.0
-    distances = np.array([0.1, 0.2, 2.0])
+    distances = np.array([2.0, 2.1, 2.2])
     rho = distances[0] # 0.1
     
     print(f"TARGET SUM: {target_budget:.4f}")
