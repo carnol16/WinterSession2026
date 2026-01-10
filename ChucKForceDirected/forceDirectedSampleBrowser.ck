@@ -1,4 +1,4 @@
-//   CHUCK UMAP BROWSER (FEATURE COLLECTOR EDITION)
+//   CHUCK Force directed sampleeeee
 
 
 // 1. CONFIGURATION
